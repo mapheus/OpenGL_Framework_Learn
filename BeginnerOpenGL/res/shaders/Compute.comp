@@ -1,0 +1,381 @@
+#version 430
+layout(local_size_x = 1, local_size_y = 1) in;
+
+layout(std430, binding=0) buffer input0
+{
+    vec4 inp[];
+};
+layout(std430, binding=1) buffer tri_count
+{
+    float n_tri[];
+};
+
+layout(std430, binding=2) buffer output0
+{
+    float tris0[];
+};
+layout(std430, binding=3) buffer output1
+{
+    float tris1[];
+};
+layout(std430, binding=4) buffer output2
+{
+    float tris2[];
+};
+layout(std430, binding=5) buffer output3
+{
+    float tris3[];
+};
+layout(std430, binding=6) buffer output4
+{
+    float tris4[];
+};
+
+
+layout(std430, binding = 7) buffer MC_TriTable
+{
+    int data[256][16];
+};
+
+
+
+// change this to a uniform
+#define isovalue -0.0
+
+#define res 32
+#define res2 33
+
+	int MC_EdgeTable[256]={
+	0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
+	0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
+	0x190, 0x99 , 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,
+	0x99c, 0x895, 0xb9f, 0xa96, 0xd9a, 0xc93, 0xf99, 0xe90,
+	0x230, 0x339, 0x33 , 0x13a, 0x636, 0x73f, 0x435, 0x53c,
+	0xa3c, 0xb35, 0x83f, 0x936, 0xe3a, 0xf33, 0xc39, 0xd30,
+	0x3a0, 0x2a9, 0x1a3, 0xaa , 0x7a6, 0x6af, 0x5a5, 0x4ac,
+	0xbac, 0xaa5, 0x9af, 0x8a6, 0xfaa, 0xea3, 0xda9, 0xca0,
+	0x460, 0x569, 0x663, 0x76a, 0x66 , 0x16f, 0x265, 0x36c,
+	0xc6c, 0xd65, 0xe6f, 0xf66, 0x86a, 0x963, 0xa69, 0xb60,
+	0x5f0, 0x4f9, 0x7f3, 0x6fa, 0x1f6, 0xff , 0x3f5, 0x2fc,
+	0xdfc, 0xcf5, 0xfff, 0xef6, 0x9fa, 0x8f3, 0xbf9, 0xaf0,
+	0x650, 0x759, 0x453, 0x55a, 0x256, 0x35f, 0x55 , 0x15c,
+	0xe5c, 0xf55, 0xc5f, 0xd56, 0xa5a, 0xb53, 0x859, 0x950,
+	0x7c0, 0x6c9, 0x5c3, 0x4ca, 0x3c6, 0x2cf, 0x1c5, 0xcc ,
+	0xfcc, 0xec5, 0xdcf, 0xcc6, 0xbca, 0xac3, 0x9c9, 0x8c0, // mirrors here...
+	0x8c0, 0x9c9, 0xac3, 0xbca, 0xcc6, 0xdcf, 0xec5, 0xfcc,
+	0xcc , 0x1c5, 0x2cf, 0x3c6, 0x4ca, 0x5c3, 0x6c9, 0x7c0,
+	0x950, 0x859, 0xb53, 0xa5a, 0xd56, 0xc5f, 0xf55, 0xe5c,
+	0x15c, 0x55 , 0x35f, 0x256, 0x55a, 0x453, 0x759, 0x650,
+	0xaf0, 0xbf9, 0x8f3, 0x9fa, 0xef6, 0xfff, 0xcf5, 0xdfc,
+	0x2fc, 0x3f5, 0xff , 0x1f6, 0x6fa, 0x7f3, 0x4f9, 0x5f0,
+	0xb60, 0xa69, 0x963, 0x86a, 0xf66, 0xe6f, 0xd65, 0xc6c,
+	0x36c, 0x265, 0x16f, 0x66 , 0x76a, 0x663, 0x569, 0x460,
+	0xca0, 0xda9, 0xea3, 0xfaa, 0x8a6, 0x9af, 0xaa5, 0xbac,
+	0x4ac, 0x5a5, 0x6af, 0x7a6, 0xaa , 0x1a3, 0x2a9, 0x3a0,
+	0xd30, 0xc39, 0xf33, 0xe3a, 0x936, 0x83f, 0xb35, 0xa3c,
+	0x53c, 0x435, 0x73f, 0x636, 0x13a, 0x33 , 0x339, 0x230,
+	0xe90, 0xf99, 0xc93, 0xd9a, 0xa96, 0xb9f, 0x895, 0x99c,
+	0x69c, 0x795, 0x49f, 0x596, 0x29a, 0x393, 0x99 , 0x190,
+	0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
+	0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0   };
+
+
+
+
+
+int lessthan(vec4 left, vec4 right)
+{
+    if(left.x < right.x)
+        return 1;
+    else if(left.x > right.x)
+        return 0;
+
+    if(left.y < right.y)
+        return 1;
+    else if(left.y > right.y)
+        return 0;
+
+    if(left.z < right.z)
+        return 1;
+    else if(left.z > right.z)
+        return 0;
+
+    return 0;
+}
+
+vec4 vertex_interp(vec4 v0, vec4 v1)
+{
+    if(0 == lessthan(v0, v1))
+    {
+        vec4 temp = v0;
+        v0 = v1;
+        v1 = temp;
+    }
+
+	const float epsilon = 1e-10f;
+
+	if(abs(isovalue - v0.w) < epsilon)
+		return(v0);
+
+	if(abs(isovalue - v1.w) < epsilon)
+		return(v1);
+
+	if(abs(v0.w - v1.w) < epsilon)
+		return(v0);
+
+	float mu = (isovalue - v0.w) / (v1.w - v0.w);
+
+	return v0 + (v1 - v0)*mu;
+}
+
+struct grid_cube
+{
+	vec4 vertex_val[8];
+};
+/*
+int tesselate_grid_cube(grid_cube grid, ivec2 pixel_coords)
+{
+	int cubeindex = 0;
+
+	if(grid.vertex_val[0].w < isovalue) cubeindex |= 1;
+	if(grid.vertex_val[1].w < isovalue) cubeindex |= 2;
+	if(grid.vertex_val[2].w < isovalue) cubeindex |= 4;
+	if(grid.vertex_val[3].w < isovalue) cubeindex |= 8;
+	if(grid.vertex_val[4].w < isovalue) cubeindex |= 16;
+	if(grid.vertex_val[5].w < isovalue) cubeindex |= 32;
+	if(grid.vertex_val[6].w < isovalue) cubeindex |= 64;
+	if(grid.vertex_val[7].w < isovalue) cubeindex |= 128;
+
+	if(0 == MC_EdgeTable[cubeindex])
+		return 0;
+
+	vec4 vertlist[12];
+
+	if((MC_EdgeTable[cubeindex] & 1) == 1)
+		vertlist[0] = vertex_interp(grid.vertex_val[0], grid.vertex_val[1]);
+
+	if((MC_EdgeTable[cubeindex] & 2) == 2)
+		vertlist[1] = vertex_interp(grid.vertex_val[1], grid.vertex_val[2]);
+
+	if((MC_EdgeTable[cubeindex] & 4) == 4)
+		vertlist[2] = vertex_interp(grid.vertex_val[2], grid.vertex_val[3]);
+
+	if((MC_EdgeTable[cubeindex] & 8) == 8)
+		vertlist[3] = vertex_interp(grid.vertex_val[3], grid.vertex_val[0]);
+
+	if((MC_EdgeTable[cubeindex] & 16) == 16)
+		vertlist[4] = vertex_interp(grid.vertex_val[4], grid.vertex_val[5]);
+
+	if((MC_EdgeTable[cubeindex] & 32) == 32)
+		vertlist[5] = vertex_interp(grid.vertex_val[5], grid.vertex_val[6]);
+
+	if((MC_EdgeTable[cubeindex] & 64) == 64)
+		vertlist[6] = vertex_interp(grid.vertex_val[6], grid.vertex_val[7]);
+
+	if((MC_EdgeTable[cubeindex] & 128) == 128)
+		vertlist[7] = vertex_interp(grid.vertex_val[7], grid.vertex_val[4]);
+
+	if((MC_EdgeTable[cubeindex] & 256) == 256)
+		vertlist[8] = vertex_interp(grid.vertex_val[0], grid.vertex_val[4]);
+
+	if((MC_EdgeTable[cubeindex] & 512) == 512)
+		vertlist[9] = vertex_interp(grid.vertex_val[1], grid.vertex_val[5]);
+
+	if((MC_EdgeTable[cubeindex] & 1024) == 1024)
+		vertlist[10] = vertex_interp(grid.vertex_val[2], grid.vertex_val[6]);
+
+	if((MC_EdgeTable[cubeindex] & 2048) == 2048)
+		vertlist[11] = vertex_interp(grid.vertex_val[3], grid.vertex_val[7]);
+
+	int ntriang = 0;
+
+	for(int i = 0; data[cubeindex][i] != -1; i += 3)
+	{
+
+		vec3 vertex0, vertex1, vertex2;
+
+		vertex0.x = vertlist[data[cubeindex][i]].x;
+		vertex0.y = vertlist[data[cubeindex][i]].y;
+		vertex0.z = vertlist[data[cubeindex][i]].z;
+
+		vertex1.x = vertlist[data[cubeindex][i + 1]].x;
+		vertex1.y = vertlist[data[cubeindex][i + 1]].y;
+		vertex1.z = vertlist[data[cubeindex][i + 1]].z;
+
+		vertex2.x = vertlist[data[cubeindex][i + 2]].x;
+		vertex2.y = vertlist[data[cubeindex][i + 2]].y;
+		vertex2.z = vertlist[data[cubeindex][i + 2]].z;
+
+		vec3 normal = cross((vertex1 - vertex0), (vertex2 - vertex0));
+		if(ntriang == 0)
+		{
+		
+
+			tris0[(pixel_coords.x)*12 + (pixel_coords.y * res)*12] = vertex0.x;
+			tris0[(pixel_coords.x)*12+1 + (pixel_coords.y * res)*12] = vertex0.y;
+			tris0[(pixel_coords.x)*12+2 + (pixel_coords.y * res)*12] = vertex0.z;
+			tris0[(pixel_coords.x)*12+3 + (pixel_coords.y * res)*12] = normal.x;
+			tris0[(pixel_coords.x)*12+4 + (pixel_coords.y * res)*12] = normal.y;
+			tris0[(pixel_coords.x)*12+5 + (pixel_coords.y * res)*12] = normal.z;
+			
+			tris0[(pixel_coords.x)*12+6 + (pixel_coords.y * res)*12] = vertex1.x;
+			tris0[(pixel_coords.x)*12+7 + (pixel_coords.y * res)*12] = vertex1.y;
+			tris0[(pixel_coords.x)*12+8 + (pixel_coords.y * res)*12] = vertex1.z;
+			tris0[(pixel_coords.x)*12+9 + (pixel_coords.y * res)*12] = normal.x;
+			tris0[(pixel_coords.x)*12+10 + (pixel_coords.y * res)*12] = normal.y;
+			tris0[(pixel_coords.x)*12+11 + (pixel_coords.y * res)*12] = normal.z;
+
+			tris0[(pixel_coords.x)*12+12 + (pixel_coords.y * res)*12] = vertex2.x;
+			tris0[(pixel_coords.x)*12+13 + (pixel_coords.y * res)*12] = vertex2.y;
+			tris0[(pixel_coords.x)*12+14 + (pixel_coords.y * res)*12] = vertex2.z;
+			tris0[(pixel_coords.x)*12+15 + (pixel_coords.y * res)*12] = normal.x;
+			tris0[(pixel_coords.x)*12+16 + (pixel_coords.y * res)*12] = normal.y;
+			tris0[(pixel_coords.x)*12+17 + (pixel_coords.y * res)*12] = normal.z;
+			
+		}
+		if(ntriang == 1)
+		{
+			tris1[(pixel_coords.x)*12 + (pixel_coords.y * res)*12] = vertex0.x;
+			tris1[(pixel_coords.x)*12+1 + (pixel_coords.y * res)*12] = vertex0.y;
+			tris1[(pixel_coords.x)*12+2 + (pixel_coords.y * res)*12] = vertex0.z;
+			tris1[(pixel_coords.x)*12+3 + (pixel_coords.y * res)*12] = normal.x;
+			tris1[(pixel_coords.x)*12+4 + (pixel_coords.y * res)*12] = normal.y;
+			tris1[(pixel_coords.x)*12+5 + (pixel_coords.y * res)*12] = normal.z;
+			
+			tris1[(pixel_coords.x)*12+6 + (pixel_coords.y * res)*12] = vertex1.x;
+			tris1[(pixel_coords.x)*12+7 + (pixel_coords.y * res)*12] = vertex1.y;
+			tris1[(pixel_coords.x)*12+8 + (pixel_coords.y * res)*12] = vertex1.z;
+			tris1[(pixel_coords.x)*12+9 + (pixel_coords.y * res)*12] = normal.x;
+			tris1[(pixel_coords.x)*12+10 + (pixel_coords.y * res)*12] = normal.y;
+			tris1[(pixel_coords.x)*12+11 + (pixel_coords.y * res)*12] = normal.z;
+
+			tris1[(pixel_coords.x)*12+12 + (pixel_coords.y * res)*12] = vertex2.x;
+			tris1[(pixel_coords.x)*12+13 + (pixel_coords.y * res)*12] = vertex2.y;
+			tris1[(pixel_coords.x)*12+14 + (pixel_coords.y * res)*12] = vertex2.z;
+			tris1[(pixel_coords.x)*12+15 + (pixel_coords.y * res)*12] = normal.x;
+			tris1[(pixel_coords.x)*12+16 + (pixel_coords.y * res)*12] = normal.y;
+			tris1[(pixel_coords.x)*12+17 + (pixel_coords.y * res)*12] = normal.z;
+		}
+		else if(ntriang == 2)
+		{
+			tris2[(pixel_coords.x)*12 + (pixel_coords.y * res)*12] = vertex0.x;
+			tris2[(pixel_coords.x)*12+1 + (pixel_coords.y * res)*12] = vertex0.y;
+			tris2[(pixel_coords.x)*12+2 + (pixel_coords.y * res)*12] = vertex0.z;
+			tris2[(pixel_coords.x)*12+3 + (pixel_coords.y * res)*12] = normal.x;
+			tris2[(pixel_coords.x)*12+4 + (pixel_coords.y * res)*12] = normal.y;
+			tris2[(pixel_coords.x)*12+5 + (pixel_coords.y * res)*12] = normal.z;
+			
+			tris2[(pixel_coords.x)*12+6 + (pixel_coords.y * res)*12] = vertex1.x;
+			tris2[(pixel_coords.x)*12+7 + (pixel_coords.y * res)*12] = vertex1.y;
+			tris2[(pixel_coords.x)*12+8 + (pixel_coords.y * res)*12] = vertex1.z;
+			tris2[(pixel_coords.x)*12+9 + (pixel_coords.y * res)*12] = normal.x;
+			tris2[(pixel_coords.x)*12+10 + (pixel_coords.y * res)*12] = normal.y;
+			tris2[(pixel_coords.x)*12+11 + (pixel_coords.y * res)*12] = normal.z;
+
+			tris2[(pixel_coords.x)*12+12 + (pixel_coords.y * res)*12] = vertex2.x;
+			tris2[(pixel_coords.x)*12+13 + (pixel_coords.y * res)*12] = vertex2.y;
+			tris2[(pixel_coords.x)*12+14 + (pixel_coords.y * res)*12] = vertex2.z;
+			tris2[(pixel_coords.x)*12+15 + (pixel_coords.y * res)*12] = normal.x;
+			tris2[(pixel_coords.x)*12+16 + (pixel_coords.y * res)*12] = normal.y;
+			tris2[(pixel_coords.x)*12+17 + (pixel_coords.y * res)*12] = normal.z;
+		}
+		else if(ntriang == 3)
+		{
+			tris3[(pixel_coords.x)*12 + (pixel_coords.y * res)*12] = vertex0.x;
+			tris3[(pixel_coords.x)*12+1 + (pixel_coords.y * res)*12] = vertex0.y;
+			tris3[(pixel_coords.x)*12+2 + (pixel_coords.y * res)*12] = vertex0.z;
+			tris3[(pixel_coords.x)*12+3 + (pixel_coords.y * res)*12] = normal.x;
+			tris3[(pixel_coords.x)*12+4 + (pixel_coords.y * res)*12] = normal.y;
+			tris3[(pixel_coords.x)*12+5 + (pixel_coords.y * res)*12] = normal.z;
+			
+			tris3[(pixel_coords.x)*12+6 + (pixel_coords.y * res)*12] = vertex1.x;
+			tris3[(pixel_coords.x)*12+7 + (pixel_coords.y * res)*12] = vertex1.y;
+			tris3[(pixel_coords.x)*12+8 + (pixel_coords.y * res)*12] = vertex1.z;
+			tris3[(pixel_coords.x)*12+9 + (pixel_coords.y * res)*12] = normal.x;
+			tris3[(pixel_coords.x)*12+10 + (pixel_coords.y * res)*12] = normal.y;
+			tris3[(pixel_coords.x)*12+11 + (pixel_coords.y * res)*12] = normal.z;
+
+			tris3[(pixel_coords.x)*12+12 + (pixel_coords.y * res)*12] = vertex2.x;
+			tris3[(pixel_coords.x)*12+13 + (pixel_coords.y * res)*12] = vertex2.y;
+			tris3[(pixel_coords.x)*12+14 + (pixel_coords.y * res)*12] = vertex2.z;
+			tris3[(pixel_coords.x)*12+15 + (pixel_coords.y * res)*12] = normal.x;
+			tris3[(pixel_coords.x)*12+16 + (pixel_coords.y * res)*12] = normal.y;
+			tris3[(pixel_coords.x)*12+17 + (pixel_coords.y * res)*12] = normal.z;
+		}
+		else if(ntriang == 4)
+		{
+			tris4[(pixel_coords.x)*12 + (pixel_coords.y * res)*12] = vertex0.x;
+			tris4[(pixel_coords.x)*12+1 + (pixel_coords.y * res)*12] = vertex0.y;
+			tris4[(pixel_coords.x)*12+2 + (pixel_coords.y * res)*12] = vertex0.z;
+			tris4[(pixel_coords.x)*12+3 + (pixel_coords.y * res)*12] = normal.x;
+			tris4[(pixel_coords.x)*12+4 + (pixel_coords.y * res)*12] = normal.y;
+			tris4[(pixel_coords.x)*12+5 + (pixel_coords.y * res)*12] = normal.z;
+			
+			tris4[(pixel_coords.x)*12+6 + (pixel_coords.y * res)*12] = vertex1.x;
+			tris4[(pixel_coords.x)*12+7 + (pixel_coords.y * res)*12] = vertex1.y;
+			tris4[(pixel_coords.x)*12+8 + (pixel_coords.y * res)*12] = vertex1.z;
+			tris4[(pixel_coords.x)*12+9 + (pixel_coords.y * res)*12] = normal.x;
+			tris4[(pixel_coords.x)*12+10 + (pixel_coords.y * res)*12] = normal.y;
+			tris4[(pixel_coords.x)*12+11 + (pixel_coords.y * res)*12] = normal.z;
+
+			tris4[(pixel_coords.x)*12+12 + (pixel_coords.y * res)*12] = vertex2.x;
+			tris4[(pixel_coords.x)*12+13 + (pixel_coords.y * res)*12] = vertex2.y;
+			tris4[(pixel_coords.x)*12+14 + (pixel_coords.y * res)*12] = vertex2.z;
+			tris4[(pixel_coords.x)*12+15 + (pixel_coords.y * res)*12] = normal.x;
+			tris4[(pixel_coords.x)*12+16 + (pixel_coords.y * res)*12] = normal.y;
+			tris4[(pixel_coords.x)*12+17 + (pixel_coords.y * res)*12] = normal.z;
+		}
+		
+		ntriang += 1;
+	}
+
+	return ntriang;
+}
+
+*/
+void main()
+{
+
+	grid_cube g;
+
+	const ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
+
+	/*
+	g.vertex_val[0] = inp[pixel_coords.x +res2*pixel_coords.y + res2*res2*0];
+	g.vertex_val[1] = inp[pixel_coords.x+1 + res2 * pixel_coords.y + res2 * res2 * 0];
+	g.vertex_val[2] = inp[pixel_coords.x+1 + res2 * pixel_coords.y + res2 * res2 * 1];
+	g.vertex_val[3] = inp[pixel_coords.x + res2 * pixel_coords.y + res2 * res2 * 1];
+	g.vertex_val[4] = inp[pixel_coords.x + res2 * (pixel_coords.y+1) + res2 * res2 * 0];
+	g.vertex_val[5] = inp[pixel_coords.x+1 + res2 * (pixel_coords.y+1) + res2 * res2 * 0];
+	g.vertex_val[6] = inp[pixel_coords.x+1 + res2 * (pixel_coords.y+1) + res2 * res2 * 1];
+	g.vertex_val[7] = inp[pixel_coords.x + res2 * (pixel_coords.y+1) + res2 * res2 * 1];
+	
+
+	int n = tesselate_grid_cube(g, pixel_coords);
+	n_tri[pixel_coords.x + res*pixel_coords.y] = n;
+	*/
+	int x = pixel_coords.x;
+		if(pixel_coords.x<9) {
+		tris0[x] = 0;
+		tris0[x+1] = 0;
+		tris0[x+2] = 0;
+	  }
+	  else if(pixel_coords.x%3 == 0)
+	  {
+		tris0[x] = x;
+		tris0[x+1] = x;
+		tris0[x+2] = 3;
+	  }
+	  else if (pixel_coords.x%3 == 1)
+	  {
+		tris0[x] = x;
+		tris0[x+1] = x;
+		tris0[x+2] = 1;
+	  } 
+	  else if (pixel_coords.x%3 == 2){
+		tris0[x] = x;
+		tris0[x+1] = 5.5;
+		tris0[x+2] = x;
+	   }
+
+}
