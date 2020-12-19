@@ -6,43 +6,19 @@ layout(std430, binding=0) buffer input0
 {
     vec4 inp[];
 };
-layout(std430, binding=1) buffer tri_count
+
+layout(std430, binding = 1) buffer MC_TriTable
 {
-    float n_tri[];
+    int data[256][16];
 };
 
 layout(std430, binding=2) buffer output0
 {
     float tris0[];
 };
-layout(std430, binding=3) buffer output1
-{
-    float tris1[];
-};
-layout(std430, binding=4) buffer output2
-{
-    float tris2[];
-};
-layout(std430, binding=5) buffer output3
-{
-    float tris3[];
-};
-layout(std430, binding=6) buffer output4
-{
-    float tris4[];
-};
 
 
-layout(std430, binding = 7) buffer MC_TriTable
-{
-    int data[256][16];
-};
 
-// change this to a uniform
-#define isovalue 0.0
-
-#define res 32
-#define res2 33
 
 	int MC_EdgeTable[256]={
 	0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
@@ -102,7 +78,7 @@ int lessthan(vec4 left, vec4 right)
     return 0;
 }
 
-vec4 vertex_interp(vec4 v0, vec4 v1)
+vec4 vertex_interp(vec4 v0, vec4 v1, float isovalue)
 {
     if(0 == lessthan(v0, v1))
     {
@@ -132,7 +108,7 @@ struct grid_cube
 	vec4 vertex_val[8];
 };
 
-int tesselate_grid_cube(grid_cube grid, ivec2 pixel_coords)
+int tesselate_grid_cube(grid_cube grid, ivec2 pixel_coords, int res, float isovalue)
 {
 	int cubeindex = 0;
 
@@ -152,40 +128,40 @@ int tesselate_grid_cube(grid_cube grid, ivec2 pixel_coords)
 	vec4 vertlist[12];
 
 	if((MC_EdgeTable[cubeindex] & 1) != 0)
-		vertlist[0] = vertex_interp(grid.vertex_val[0], grid.vertex_val[1]);
+		vertlist[0] = vertex_interp(grid.vertex_val[0], grid.vertex_val[1], isovalue);
 
 	if((MC_EdgeTable[cubeindex] & 2) != 0)
-		vertlist[1] = vertex_interp(grid.vertex_val[1], grid.vertex_val[2]);
+		vertlist[1] = vertex_interp(grid.vertex_val[1], grid.vertex_val[2], isovalue);
 
 	if((MC_EdgeTable[cubeindex] & 4) != 0)
-		vertlist[2] = vertex_interp(grid.vertex_val[2], grid.vertex_val[3]);
+		vertlist[2] = vertex_interp(grid.vertex_val[2], grid.vertex_val[3], isovalue);
 
 	if((MC_EdgeTable[cubeindex] & 8) != 0)
-		vertlist[3] = vertex_interp(grid.vertex_val[3], grid.vertex_val[0]);
+		vertlist[3] = vertex_interp(grid.vertex_val[3], grid.vertex_val[0], isovalue);
 
 	if((MC_EdgeTable[cubeindex] & 16) != 0)
-		vertlist[4] = vertex_interp(grid.vertex_val[4], grid.vertex_val[5]);
+		vertlist[4] = vertex_interp(grid.vertex_val[4], grid.vertex_val[5], isovalue);
 
 	if((MC_EdgeTable[cubeindex] & 32) != 0)
-		vertlist[5] = vertex_interp(grid.vertex_val[5], grid.vertex_val[6]);
+		vertlist[5] = vertex_interp(grid.vertex_val[5], grid.vertex_val[6], isovalue);
 
 	if((MC_EdgeTable[cubeindex] & 64) != 0)
-		vertlist[6] = vertex_interp(grid.vertex_val[6], grid.vertex_val[7]);
+		vertlist[6] = vertex_interp(grid.vertex_val[6], grid.vertex_val[7], isovalue);
 
 	if((MC_EdgeTable[cubeindex] & 128) != 0)
-		vertlist[7] = vertex_interp(grid.vertex_val[7], grid.vertex_val[4]);
+		vertlist[7] = vertex_interp(grid.vertex_val[7], grid.vertex_val[4], isovalue);
 
 	if((MC_EdgeTable[cubeindex] & 256) != 0)
-		vertlist[8] = vertex_interp(grid.vertex_val[0], grid.vertex_val[4]);
+		vertlist[8] = vertex_interp(grid.vertex_val[0], grid.vertex_val[4], isovalue);
 
 	if((MC_EdgeTable[cubeindex] & 512) != 0)
-		vertlist[9] = vertex_interp(grid.vertex_val[1], grid.vertex_val[5]);
+		vertlist[9] = vertex_interp(grid.vertex_val[1], grid.vertex_val[5], isovalue);
 
 	if((MC_EdgeTable[cubeindex] & 1024) != 0)
-		vertlist[10] = vertex_interp(grid.vertex_val[2], grid.vertex_val[6]);
+		vertlist[10] = vertex_interp(grid.vertex_val[2], grid.vertex_val[6], isovalue);
 
 	if((MC_EdgeTable[cubeindex] & 2048) != 0)
-		vertlist[11] = vertex_interp(grid.vertex_val[3], grid.vertex_val[7]);
+		vertlist[11] = vertex_interp(grid.vertex_val[3], grid.vertex_val[7], isovalue);
 
 	int ntriang = 0;
 
@@ -213,120 +189,122 @@ int tesselate_grid_cube(grid_cube grid, ivec2 pixel_coords)
 		if(ntriang == 0)
 		{
 		
-
-			tris0[(pixel_coords.x)*18 + (pixel_coords.y * res)*18] = vertex0.x;
-			tris0[(pixel_coords.x)*18+1 + (pixel_coords.y * res)*18] = vertex0.y;
-			tris0[(pixel_coords.x)*18+2 + (pixel_coords.y * res)*18] = vertex0.z;
-			tris0[(pixel_coords.x)*18+3 + (pixel_coords.y * res)*18] = normal.x;
-			tris0[(pixel_coords.x)*18+4 + (pixel_coords.y * res)*18] = normal.y;
-			tris0[(pixel_coords.x)*18+5 + (pixel_coords.y * res)*18] = normal.z;
+			tris0[((pixel_coords.x)*18 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.x;
+			tris0[((pixel_coords.x)*18+1 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.y;
+			tris0[((pixel_coords.x)*18+2 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.z;
+			tris0[((pixel_coords.x)*18+3 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+4 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+5 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 			
-			tris0[(pixel_coords.x)*18+6 + (pixel_coords.y * res)*18] = vertex1.x;
-			tris0[(pixel_coords.x)*18+7 + (pixel_coords.y * res)*18] = vertex1.y;
-			tris0[(pixel_coords.x)*18+8 + (pixel_coords.y * res)*18] = vertex1.z;
-			tris0[(pixel_coords.x)*18+9 + (pixel_coords.y * res)*18] = normal.x;
-			tris0[(pixel_coords.x)*18+10 + (pixel_coords.y * res)*18] = normal.y;
-			tris0[(pixel_coords.x)*18+11 + (pixel_coords.y * res)*18] = normal.z;
+			tris0[((pixel_coords.x)*18+6 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.x;
+			tris0[((pixel_coords.x)*18+7 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.y;
+			tris0[((pixel_coords.x)*18+8 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.z;
+			tris0[((pixel_coords.x)*18+9 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+10 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+11 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 
-			tris0[(pixel_coords.x)*18+12 + (pixel_coords.y * res)*18] = vertex2.x;
-			tris0[(pixel_coords.x)*18+13 + (pixel_coords.y * res)*18] = vertex2.y;
-			tris0[(pixel_coords.x)*18+14 + (pixel_coords.y * res)*18] = vertex2.z;
-			tris0[(pixel_coords.x)*18+15 + (pixel_coords.y * res)*18] = normal.x;
-			tris0[(pixel_coords.x)*18+16 + (pixel_coords.y * res)*18] = normal.y;
-			tris0[(pixel_coords.x)*18+17 + (pixel_coords.y * res)*18] = normal.z;
+			tris0[((pixel_coords.x)*18+12 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.x;
+			tris0[((pixel_coords.x)*18+13 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.y;
+			tris0[((pixel_coords.x)*18+14 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.z;
+			tris0[((pixel_coords.x)*18+15 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+16 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+17 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 			
 		}
 		if(ntriang == 1)
 		{
-			tris1[(pixel_coords.x)*18 + (pixel_coords.y * res)*18] = vertex0.x;
-			tris1[(pixel_coords.x)*18+1 + (pixel_coords.y * res)*18] = vertex0.y;
-			tris1[(pixel_coords.x)*18+2 + (pixel_coords.y * res)*18] = vertex0.z;
-			tris1[(pixel_coords.x)*18+3 + (pixel_coords.y * res)*18] = normal.x;
-			tris1[(pixel_coords.x)*18+4 + (pixel_coords.y * res)*18] = normal.y;
-			tris1[(pixel_coords.x)*18+5 + (pixel_coords.y * res)*18] = normal.z;
-			
-			tris1[(pixel_coords.x)*18+6 + (pixel_coords.y * res)*18] = vertex1.x;
-			tris1[(pixel_coords.x)*18+7 + (pixel_coords.y * res)*18] = vertex1.y;
-			tris1[(pixel_coords.x)*18+8 + (pixel_coords.y * res)*18] = vertex1.z;
-			tris1[(pixel_coords.x)*18+9 + (pixel_coords.y * res)*18] = normal.x;
-			tris1[(pixel_coords.x)*18+10 + (pixel_coords.y * res)*18] = normal.y;
-			tris1[(pixel_coords.x)*18+11 + (pixel_coords.y * res)*18] = normal.z;
 
-			tris1[(pixel_coords.x)*18+12 + (pixel_coords.y * res)*18] = vertex2.x;
-			tris1[(pixel_coords.x)*18+13 + (pixel_coords.y * res)*18] = vertex2.y;
-			tris1[(pixel_coords.x)*18+14 + (pixel_coords.y * res)*18] = vertex2.z;
-			tris1[(pixel_coords.x)*18+15 + (pixel_coords.y * res)*18] = normal.x;
-			tris1[(pixel_coords.x)*18+16 + (pixel_coords.y * res)*18] = normal.y;
-			tris1[(pixel_coords.x)*18+17 + (pixel_coords.y * res)*18] = normal.z;
+			tris0[((pixel_coords.x)*18 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.x;
+			tris0[((pixel_coords.x)*18+1 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.y;
+			tris0[((pixel_coords.x)*18+2 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.z;
+			tris0[((pixel_coords.x)*18+3 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+4 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+5 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
+			
+			tris0[((pixel_coords.x)*18+6 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.x;
+			tris0[((pixel_coords.x)*18+7 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.y;
+			tris0[((pixel_coords.x)*18+8 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.z;
+			tris0[((pixel_coords.x)*18+9 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+10 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+11 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
+
+			tris0[((pixel_coords.x)*18+12 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.x;
+			tris0[((pixel_coords.x)*18+13 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.y;
+			tris0[((pixel_coords.x)*18+14 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.z;
+			tris0[((pixel_coords.x)*18+15 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+16 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+17 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 		}
 		else if(ntriang == 2)
 		{
-			tris2[(pixel_coords.x)*18 + (pixel_coords.y * res)*18] = vertex0.x;
-			tris2[(pixel_coords.x)*18+1 + (pixel_coords.y * res)*18] = vertex0.y;
-			tris2[(pixel_coords.x)*18+2 + (pixel_coords.y * res)*18] = vertex0.z;
-			tris2[(pixel_coords.x)*18+3 + (pixel_coords.y * res)*18] = normal.x;
-			tris2[(pixel_coords.x)*18+4 + (pixel_coords.y * res)*18] = normal.y;
-			tris2[(pixel_coords.x)*18+5 + (pixel_coords.y * res)*18] = normal.z;
+		
+			tris0[((pixel_coords.x)*18 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.x;
+			tris0[((pixel_coords.x)*18+1 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.y;
+			tris0[((pixel_coords.x)*18+2 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.z;
+			tris0[((pixel_coords.x)*18+3 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+4 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+5 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 			
-			tris2[(pixel_coords.x)*18+6 + (pixel_coords.y * res)*18] = vertex1.x;
-			tris2[(pixel_coords.x)*18+7 + (pixel_coords.y * res)*18] = vertex1.y;
-			tris2[(pixel_coords.x)*18+8 + (pixel_coords.y * res)*18] = vertex1.z;
-			tris2[(pixel_coords.x)*18+9 + (pixel_coords.y * res)*18] = normal.x;
-			tris2[(pixel_coords.x)*18+10 + (pixel_coords.y * res)*18] = normal.y;
-			tris2[(pixel_coords.x)*18+11 + (pixel_coords.y * res)*18] = normal.z;
+			tris0[((pixel_coords.x)*18+6 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.x;
+			tris0[((pixel_coords.x)*18+7 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.y;
+			tris0[((pixel_coords.x)*18+8 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.z;
+			tris0[((pixel_coords.x)*18+9 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+10 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+11 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 
-			tris2[(pixel_coords.x)*18+12 + (pixel_coords.y * res)*18] = vertex2.x;
-			tris2[(pixel_coords.x)*18+13 + (pixel_coords.y * res)*18] = vertex2.y;
-			tris2[(pixel_coords.x)*18+14 + (pixel_coords.y * res)*18] = vertex2.z;
-			tris2[(pixel_coords.x)*18+15 + (pixel_coords.y * res)*18] = normal.x;
-			tris2[(pixel_coords.x)*18+16 + (pixel_coords.y * res)*18] = normal.y;
-			tris2[(pixel_coords.x)*18+17 + (pixel_coords.y * res)*18] = normal.z;
+			tris0[((pixel_coords.x)*18+12 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.x;
+			tris0[((pixel_coords.x)*18+13 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.y;
+			tris0[((pixel_coords.x)*18+14 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.z;
+			tris0[((pixel_coords.x)*18+15 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+16 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+17 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 		}
 		else if(ntriang == 3)
 		{
-			tris3[(pixel_coords.x)*18 + (pixel_coords.y * res)*18] = vertex0.x;
-			tris3[(pixel_coords.x)*18+1 + (pixel_coords.y * res)*18] = vertex0.y;
-			tris3[(pixel_coords.x)*18+2 + (pixel_coords.y * res)*18] = vertex0.z;
-			tris3[(pixel_coords.x)*18+3 + (pixel_coords.y * res)*18] = normal.x;
-			tris3[(pixel_coords.x)*18+4 + (pixel_coords.y * res)*18] = normal.y;
-			tris3[(pixel_coords.x)*18+5 + (pixel_coords.y * res)*18] = normal.z;
 			
-			tris3[(pixel_coords.x)*18+6 + (pixel_coords.y * res)*18] = vertex1.x;
-			tris3[(pixel_coords.x)*18+7 + (pixel_coords.y * res)*18] = vertex1.y;
-			tris3[(pixel_coords.x)*18+8 + (pixel_coords.y * res)*18] = vertex1.z;
-			tris3[(pixel_coords.x)*18+9 + (pixel_coords.y * res)*18] = normal.x;
-			tris3[(pixel_coords.x)*18+10 + (pixel_coords.y * res)*18] = normal.y;
-			tris3[(pixel_coords.x)*18+11 + (pixel_coords.y * res)*18] = normal.z;
+			tris0[((pixel_coords.x)*18 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.x;
+			tris0[((pixel_coords.x)*18+1 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.y;
+			tris0[((pixel_coords.x)*18+2 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.z;
+			tris0[((pixel_coords.x)*18+3 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+4 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+5 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
+			
+			tris0[((pixel_coords.x)*18+6 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.x;
+			tris0[((pixel_coords.x)*18+7 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.y;
+			tris0[((pixel_coords.x)*18+8 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.z;
+			tris0[((pixel_coords.x)*18+9 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+10 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+11 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 
-			tris3[(pixel_coords.x)*18+12 + (pixel_coords.y * res)*18] = vertex2.x;
-			tris3[(pixel_coords.x)*18+13 + (pixel_coords.y * res)*18] = vertex2.y;
-			tris3[(pixel_coords.x)*18+14 + (pixel_coords.y * res)*18] = vertex2.z;
-			tris3[(pixel_coords.x)*18+15 + (pixel_coords.y * res)*18] = normal.x;
-			tris3[(pixel_coords.x)*18+16 + (pixel_coords.y * res)*18] = normal.y;
-			tris3[(pixel_coords.x)*18+17 + (pixel_coords.y * res)*18] = normal.z;
+			tris0[((pixel_coords.x)*18+12 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.x;
+			tris0[((pixel_coords.x)*18+13 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.y;
+			tris0[((pixel_coords.x)*18+14 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.z;
+			tris0[((pixel_coords.x)*18+15 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+16 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+17 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 		}
 		else if(ntriang == 4)
 		{
-			tris4[(pixel_coords.x)*18 + (pixel_coords.y * res)*18] = vertex0.x;
-			tris4[(pixel_coords.x)*18+1 + (pixel_coords.y * res)*18] = vertex0.y;
-			tris4[(pixel_coords.x)*18+2 + (pixel_coords.y * res)*18] = vertex0.z;
-			tris4[(pixel_coords.x)*18+3 + (pixel_coords.y * res)*18] = normal.x;
-			tris4[(pixel_coords.x)*18+4 + (pixel_coords.y * res)*18] = normal.y;
-			tris4[(pixel_coords.x)*18+5 + (pixel_coords.y * res)*18] = normal.z;
+			tris0[((pixel_coords.x)*18 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.x;
+			tris0[((pixel_coords.x)*18+1 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.y;
+			tris0[((pixel_coords.x)*18+2 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex0.z;
+			tris0[((pixel_coords.x)*18+3 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+4 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+5 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 			
-			tris4[(pixel_coords.x)*18+6 + (pixel_coords.y * res)*18] = vertex1.x;
-			tris4[(pixel_coords.x)*18+7 + (pixel_coords.y * res)*18] = vertex1.y;
-			tris4[(pixel_coords.x)*18+8 + (pixel_coords.y * res)*18] = vertex1.z;
-			tris4[(pixel_coords.x)*18+9 + (pixel_coords.y * res)*18] = normal.x;
-			tris4[(pixel_coords.x)*18+10 + (pixel_coords.y * res)*18] = normal.y;
-			tris4[(pixel_coords.x)*18+11 + (pixel_coords.y * res)*18] = normal.z;
+			tris0[((pixel_coords.x)*18+6 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.x;
+			tris0[((pixel_coords.x)*18+7 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.y;
+			tris0[((pixel_coords.x)*18+8 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex1.z;
+			tris0[((pixel_coords.x)*18+9 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+10 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+11 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 
-			tris4[(pixel_coords.x)*18+12 + (pixel_coords.y * res)*18] = vertex2.x;
-			tris4[(pixel_coords.x)*18+13 + (pixel_coords.y * res)*18] = vertex2.y;
-			tris4[(pixel_coords.x)*18+14 + (pixel_coords.y * res)*18] = vertex2.z;
-			tris4[(pixel_coords.x)*18+15 + (pixel_coords.y * res)*18] = normal.x;
-			tris4[(pixel_coords.x)*18+16 + (pixel_coords.y * res)*18] = normal.y;
-			tris4[(pixel_coords.x)*18+17 + (pixel_coords.y * res)*18] = normal.z;
+			tris0[((pixel_coords.x)*18+12 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.x;
+			tris0[((pixel_coords.x)*18+13 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.y;
+			tris0[((pixel_coords.x)*18+14 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = vertex2.z;
+			tris0[((pixel_coords.x)*18+15 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.x;
+			tris0[((pixel_coords.x)*18+16 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.y;
+			tris0[((pixel_coords.x)*18+17 + (pixel_coords.y * res)*18)+(ntriang)*res*res*18] = normal.z;
 		}
 		
 		ntriang += 1;
@@ -344,19 +322,21 @@ void main(void)
 	const int x = pixel_coords.x;
 	const int y = pixel_coords.y;
 
-  	g.vertex_val[0] = inp[x +res2*y + res2*res2*0];
-	g.vertex_val[1] = inp[x+1 + res2 * y + res2 * res2 * 0];
-	g.vertex_val[2] = inp[x+1 + res2 * y + res2 * res2 * 1];
-	g.vertex_val[3] = inp[x + res2 * y + res2 * res2 * 1];
-	g.vertex_val[4] = inp[x + res2 * (y+1) + res2 * res2 * 0];
-	g.vertex_val[5] = inp[x+1 + res2 * (y+1) + res2 * res2 * 0];
-	g.vertex_val[6] = inp[x+1 + res2 * (y+1) + res2 * res2 * 1];
-	g.vertex_val[7] = inp[x + res2 * (y+1) + res2 * res2 * 1];
+	const int element_offset = 2;
+	int res = int(inp[0].w);
+	int res2 = res+1;
+	float isovalue = inp[1].w;
+  	g.vertex_val[0] = inp[(x +res2*y + res2*res2*0) + element_offset];
+	g.vertex_val[1] = inp[(x+1 + res2 * y + res2 * res2 * 0) + element_offset];
+	g.vertex_val[2] = inp[(x+1 + res2 * y + res2 * res2 * 1) + element_offset];
+	g.vertex_val[3] = inp[(x + res2 * y + res2 * res2 * 1) + element_offset];
+	g.vertex_val[4] = inp[(x + res2 * (y+1) + res2 * res2 * 0) + element_offset];
+	g.vertex_val[5] = inp[(x+1 + res2 * (y+1) + res2 * res2 * 0) + element_offset];
+	g.vertex_val[6] = inp[(x+1 + res2 * (y+1) + res2 * res2 * 1) + element_offset];
+	g.vertex_val[7] = inp[(x + res2 * (y+1) + res2 * res2 * 1) + element_offset];
 	
 
-	int n = tesselate_grid_cube(g, pixel_coords);
-	n_tri[pixel_coords.x + res*pixel_coords.y] = n;
-
+	int n = tesselate_grid_cube(g, pixel_coords, res, isovalue);
 
 
 } 

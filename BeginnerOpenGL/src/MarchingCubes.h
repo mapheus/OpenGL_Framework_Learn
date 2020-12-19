@@ -46,14 +46,14 @@ struct mesh_data {
 
 class MarchingCubes {
 public:
-	MarchingCubes(const char* compute, const char* draw);
-	void UpdateTransform(glm::vec3 pos, float new_cubesize);
+	MarchingCubes(const char* compute, const char* compValues, const char* draw);
+	void UpdateTransform(glm::vec3 pos, glm::vec3 new_cubesize);
 	void Draw(glm::mat4 view);
 private:
 	void Update(int z);
-	void CalcValues();
 
 	Shader* _computeProgram;
+	Shader* _computeValuesProgram;
 	Shader* _drawProgram;
 
 	Texture* rock;
@@ -61,6 +61,15 @@ private:
 	Texture* snow;
 	Texture* sand;
 
+	GLuint inp_to_values;
+	GLuint out_to_marching;
+	GLuint tri_table_input;
+	GLuint output0;
+
+	size_t out_to_marching_size;
+	size_t out0_size;
+
+	int amount_elements_to_values = 9;
 	// Marching cubes
 	int MC_TriTable[256][16] =
 	{ {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -319,11 +328,13 @@ private:
 	{0, 9, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 	{0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 	{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1} };
+
+	int res = 16;
+
 	float surface_level = 0;
 	float prev_surface_level = surface_level;
 
-	int res = 32;
-	int cubesize = 40;
+	glm::vec3 _cubesize = glm::vec3(40, 40, 40);
 	std::vector<std::vector<std::vector<float>>> values;
 	std::vector<triangle> triangles;
 	float x_grid_min = -20;

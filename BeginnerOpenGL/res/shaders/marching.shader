@@ -52,26 +52,26 @@ void main()
 	if (max(dot(vec3(0, 1, 0), normal), 0) < 0.75) {
 		if (fs_in.vertex.y < 7.5) {
 			tex = texture(diffuse_texture, ivec2(int(fs_in.vertex.x), int(fs_in.vertex.z)) * texscale).rgb;
-			//tex = rock;
+			tex = rock;
 		}
 	}
 	else {
 		tex = texture(grass_texture, fs_in.vertex.xy*texscale).rgb;
-		//tex = grass;
+		tex = grass;
 	}
 
 	if (fs_in.vertex.y > 7.5) {
 		tex = texture(diffuse_texture, fs_in.vertex.xz* texscale).rgb;
-		//tex = rock;
+		tex = rock;
 
 		if (max(dot(vec3(0, 1, 0), normal), 0) > 0.75) {
 			tex = texture(snow_texture, fs_in.vertex.xz* texscale).rgb;
-			//tex = snow;
+			tex = snow;
 		}
 	}
 	if (fs_in.vertex.y < 0.3 && max(dot(vec3(0, 1, 0), normal), 0)> 0.65) {
 		tex = texture(sand_texture, vec2(fs_in.vertex.x, fs_in.vertex.z)* texscale).rgb;
-		//tex = sand;
+		tex = sand;
 	}
 	vec3 color = tex;
 	frag_color = vec4(color * diff, 1);

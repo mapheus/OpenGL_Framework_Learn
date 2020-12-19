@@ -170,6 +170,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="res\shaders\Basic.shader" />
+    <None Include="res\shaders\calcValues.comp" />
     <None Include="res\shaders\Cel.shader" />
     <None Include="res\shaders\Compute.comp" />
     <None Include="res\shaders\ctest.comp" />

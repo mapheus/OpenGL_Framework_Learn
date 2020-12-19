@@ -271,17 +271,18 @@ int main(void)
     Renderer renderer;
 
     //Model m("res/models/backpack/backpack.obj");
-    Terrain terr(TerrainType::MARCHING, glm::vec3(40.f, 40.f, 40.f));
-    float b = glfwGetTime();
-    int chunks = 1;
+    Terrain terr(TerrainType::MARCHING, glm::vec3(80.f, 40.f, 80.f));
+    int chunks = 3;
     terr.SetChunkSize(chunks, chunks);
+    float b = glfwGetTime();
+    terr.SetPosition(glm::vec3(-10, 0, 0));
     float a = glfwGetTime();
     printf("---- RENDER TERRAIN ----\nChunks: %i\nTime: %f\n", chunks * chunks, a - b);
-    MarchingCubes mc("res/shaders/ctest2.comp", "res/shaders/marching.shader");
+    MarchingCubes mc("res/shaders/ctest2.comp", "res/shaders/calcValues.comp", "res/shaders/marching.shader");
     b = glfwGetTime();
-    mc.UpdateTransform(glm::vec3(80, 0, 0), 40);
+    mc.UpdateTransform(glm::vec3(80, 0, 0), glm::vec3(80.f, 40.f, 80.f));
     a = glfwGetTime();
-    printf("---- RENDER MC ----\nChunks: %i\nTime: %f\n", chunks * chunks, a - b);
+    printf("---- RENDER ONE MC ----\nTime: %f\n\n", a - b);
 
 
     float f = -3.f;
@@ -335,9 +336,22 @@ int main(void)
 			* glm::rotate(glm::mat4(1.0f), glm::radians(90.f), glm::vec3(1, 0, 0))
 			* glm::scale(glm::mat4(1.0f), glm::vec3(30)));
        // m.Draw(shader);
-		//renderer.Draw(va, ib, shader);
+		renderer.Draw(va, ib, shader);
         terr.Draw(camera.GetProjectionMatrix() * camera.GetViewMatrix());
         mc.Draw(camera.GetProjectionMatrix()* camera.GetViewMatrix());
+
+        add += 0.02f;
+        if (glfwGetTime() - lastcheck > 2) {
+            float b = glfwGetTime();
+            terr.SetPosition(glm::vec3(-20.f, 0.f, 0.f+add));
+            float a = glfwGetTime();
+            printf("---- RENDER TERRAIN ----\nChunks: %i\nTime: %f\n", chunks* chunks, a - b);
+            b = glfwGetTime();
+            mc.UpdateTransform(glm::vec3(80, 0, 0+add), glm::vec3(80.f, 40.f, 80.f));
+            a = glfwGetTime();
+            printf("---- RENDER ONE MC ----\nTime: %f\n\n", a - b);
+            lastcheck = glfwGetTime();
+        }
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);

@@ -1,0 +1,260 @@
+#version 430 core
+layout(local_size_x=1, local_size_y=1, local_size_z=1) in;
+
+
+layout(std430, binding=1) buffer in0
+{
+    float inp[];
+};
+
+
+layout(std430, binding=0) buffer out_to_marching
+{
+    vec4 vertices[];
+};
+
+struct grid_cube
+{
+	vec4 vertex[8];
+};
+
+//	Simplex 3D Noise 
+//	by Ian McEwan, Ashima Arts
+//
+vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+
+float snoise(vec3 v){ 
+  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+
+// First corner
+  vec3 i  = floor(v + dot(v, C.yyy) );
+  vec3 x0 =   v - i + dot(i, C.xxx) ;
+
+// Other corners
+  vec3 g = step(x0.yzx, x0.xyz);
+  vec3 l = 1.0 - g;
+  vec3 i1 = min( g.xyz, l.zxy );
+  vec3 i2 = max( g.xyz, l.zxy );
+
+  //  x0 = x0 - 0. + 0.0 * C 
+  vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+  vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+  vec3 x3 = x0 - 1. + 3.0 * C.xxx;
+
+// Permutations
+  i = mod(i, 289.0 ); 
+  vec4 p = permute( permute( permute( 
+             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+           + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+
+// Gradients
+// ( N*N points uniformly over a square, mapped onto an octahedron.)
+  float n_ = 1.0/7.0; // N=7
+  vec3  ns = n_ * D.wyz - D.xzx;
+
+  vec4 j = p - 49.0 * floor(p * ns.z *ns.z);  //  mod(p,N*N)
+
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_ );    // mod(j,N)
+
+  vec4 x = x_ *ns.x + ns.yyyy;
+  vec4 y = y_ *ns.x + ns.yyyy;
+  vec4 h = 1.0 - abs(x) - abs(y);
+
+  vec4 b0 = vec4( x.xy, y.xy );
+  vec4 b1 = vec4( x.zw, y.zw );
+
+  vec4 s0 = floor(b0)*2.0 + 1.0;
+  vec4 s1 = floor(b1)*2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+
+  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+
+  vec3 p0 = vec3(a0.xy,h.x);
+  vec3 p1 = vec3(a0.zw,h.y);
+  vec3 p2 = vec3(a1.xy,h.z);
+  vec3 p3 = vec3(a1.zw,h.w);
+
+//Normalise gradients
+  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+  p0 *= norm.x;
+  p1 *= norm.y;
+  p2 *= norm.z;
+  p3 *= norm.w;
+
+// Mix final noise value
+  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
+                                dot(p2,x2), dot(p3,x3) ) );
+}
+
+
+float values(float x, float y, float z)
+{
+	// PARAMETERS
+	float scale = 0.05f;
+	float amplitude = 2.f;
+	float density = 2.f;
+	float air = 2.f;
+
+	float v = snoise(vec3(x*scale, y*scale, z*scale));
+	v = v*25;
+	
+	if(y > 0) {
+		v += 4+abs(y)*density;
+	} else {
+		v -= 3+abs(y)*air;
+	}
+	
+	
+	return v;
+}
+
+void cubes(int res2, int element_offset, float x_grid_min, float x_step_size, float y_grid_min, float y_step_size,float z_grid_min, float z_step_size, float z) {
+	
+	uint x = gl_GlobalInvocationID.x;
+	uint y = gl_GlobalInvocationID.y;
+	int x_offset = 0;
+	int y_offset = 0;
+	int z_offset = 0;
+
+	grid_cube temp_cube;
+
+	// Setup vertex 0
+	x_offset = 0;
+	y_offset = 0;
+	z_offset = 0;
+	temp_cube.vertex[0].x = x_grid_min + ((x + x_offset) * x_step_size);
+	temp_cube.vertex[0].y = y_grid_min + ((y + y_offset) * y_step_size);
+	temp_cube.vertex[0].z = z_grid_min + ((z + z_offset) * z_step_size);
+
+
+	// Setup value for vertex 0
+	temp_cube.vertex[0].w = values(temp_cube.vertex[0].x, temp_cube.vertex[0].y, temp_cube.vertex[0].z);
+
+	// Setup vertex 1
+	x_offset = 1;
+	y_offset = 0;
+	z_offset = 0;
+	temp_cube.vertex[1].x = x_grid_min + ((x + x_offset) * x_step_size);
+	temp_cube.vertex[1].y = y_grid_min + ((y + y_offset) * y_step_size);
+	temp_cube.vertex[1].z = z_grid_min + ((z + z_offset) * z_step_size);
+
+	// Setup value for vertex 1
+	temp_cube.vertex[1].w = values(temp_cube.vertex[1].x, temp_cube.vertex[1].y, temp_cube.vertex[1].z);
+
+	// Setup vertex 2
+	x_offset = 1;
+	y_offset = 0;
+	z_offset = 1;
+	temp_cube.vertex[2].x = x_grid_min + ((x + x_offset) * x_step_size);
+	temp_cube.vertex[2].y = y_grid_min + ((y + y_offset) * y_step_size);
+	temp_cube.vertex[2].z = z_grid_min + ((z + z_offset) * z_step_size);
+
+	// Setup value for vertex 2
+	temp_cube.vertex[2].w = values(temp_cube.vertex[2].x, temp_cube.vertex[2].y, temp_cube.vertex[2].z);
+
+	// Setup vertex 3
+	x_offset = 0;
+	y_offset = 0;
+	z_offset = 1;
+	temp_cube.vertex[3].x = x_grid_min + ((x + x_offset) * x_step_size);
+	temp_cube.vertex[3].y = y_grid_min + ((y + y_offset) * y_step_size);
+	temp_cube.vertex[3].z = z_grid_min + ((z + z_offset) * z_step_size);
+
+	// Setup value for vertex 3
+	temp_cube.vertex[3].w = values(temp_cube.vertex[3].x, temp_cube.vertex[3].y, temp_cube.vertex[3].z);
+
+
+
+	// Setup vertex 4
+	x_offset = 0;
+	y_offset = 1;
+	z_offset = 0;
+	temp_cube.vertex[4].x = x_grid_min + ((x + x_offset) * x_step_size);
+	temp_cube.vertex[4].y = y_grid_min + ((y + y_offset) * y_step_size);
+	temp_cube.vertex[4].z = z_grid_min + ((z + z_offset) * z_step_size);
+
+	// Setup value for vertex 4
+	temp_cube.vertex[4].w = values(temp_cube.vertex[4].x, temp_cube.vertex[4].y, temp_cube.vertex[4].z);
+
+	// Setup vertex 5
+	x_offset = 1;
+	y_offset = 1;
+	z_offset = 0;
+	temp_cube.vertex[5].x = x_grid_min + ((x + x_offset) * x_step_size);
+	temp_cube.vertex[5].y = y_grid_min + ((y + y_offset) * y_step_size);
+	temp_cube.vertex[5].z = z_grid_min + ((z + z_offset) * z_step_size);
+
+	// Setup value for vertex 5
+	temp_cube.vertex[5].w = values(temp_cube.vertex[5].x, temp_cube.vertex[5].y, temp_cube.vertex[5].z);
+
+	// Setup vertex 6
+	x_offset = 1;
+	y_offset = 1;
+	z_offset = 1;
+	temp_cube.vertex[6].x = x_grid_min + ((x + x_offset) * x_step_size);
+	temp_cube.vertex[6].y = y_grid_min + ((y + y_offset) * y_step_size);
+	temp_cube.vertex[6].z = z_grid_min + ((z + z_offset) * z_step_size);
+
+	// Setup value for vertex 6
+	temp_cube.vertex[6].w = values(temp_cube.vertex[6].x, temp_cube.vertex[6].y, temp_cube.vertex[6].z);
+
+	// Setup vertex 7
+	x_offset = 0;
+	y_offset = 1;
+	z_offset = 1;
+	temp_cube.vertex[7].x = x_grid_min + ((x + x_offset) * x_step_size);
+	temp_cube.vertex[7].y = y_grid_min + ((y + y_offset) * y_step_size);
+	temp_cube.vertex[7].z = z_grid_min + ((z + z_offset) * z_step_size);
+
+	// Setup value for vertex 7
+	temp_cube.vertex[7].w = values(temp_cube.vertex[7].x, temp_cube.vertex[7].y, temp_cube.vertex[7].z);
+
+	vertices[(x + res2 * y + res2 * res2 * 0) + element_offset] = temp_cube.vertex[0];
+	vertices[(x + 1 + res2 * y + res2 * res2 * 0) + element_offset] = temp_cube.vertex[1];
+	vertices[(x + 1 + res2 * y + res2 * res2 * 1) + element_offset] = temp_cube.vertex[2];
+	vertices[(x + res2 * y + res2 * res2 * 1) + element_offset] = temp_cube.vertex[3];
+	vertices[(x + res2 * (y + 1) + res2 * res2 * 0) + element_offset] = temp_cube.vertex[4];
+	vertices[(x + 1 + res2 * (y + 1) + res2 * res2 * 0) + element_offset] = temp_cube.vertex[5];
+	vertices[(x + 1 + res2 * (y + 1) + res2 * res2 * 1) + element_offset] = temp_cube.vertex[6];
+	vertices[(x + res2 * (y + 1) + res2 * res2 * 1) + element_offset] = temp_cube.vertex[7];
+
+}
+
+
+
+
+
+void main(void)
+{
+
+  	grid_cube g;
+
+	const ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
+	const int x = pixel_coords.x;
+	const int y = pixel_coords.y;
+
+	int res = int(inp[0]);
+	int res2 = res+1;
+	float isovalue = inp[1];
+
+	float x_grid_min = inp[2];
+	float x_step_size = inp[3];
+	float y_grid_min = inp[4];
+	float y_step_size = inp[5];
+	float z_grid_min = inp[6];
+	float z_step_size = inp[7];
+	float z = inp[8];
+
+
+	const int element_offset = 2;
+	vertices[0] = vec4(0,0,0, res);
+	vertices[1] = vec4(0,0,0, isovalue);
+	cubes(res2, element_offset, x_grid_min, x_step_size, y_grid_min, y_step_size, z_grid_min, z_step_size, z);
+} 
