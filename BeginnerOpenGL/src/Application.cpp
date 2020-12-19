@@ -24,6 +24,7 @@
 #include "Model.h"
 #include "PerlinNoise.hpp"
 #include "MarchingCubes.h"
+#include "Terrain.h"
 
 void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -270,17 +271,19 @@ int main(void)
     Renderer renderer;
 
     //Model m("res/models/backpack/backpack.obj");
-
-    MarchingCubes mc("res/shaders/ctest2.comp", "res/shaders/marching.shader");
+    Terrain terr(TerrainType::MARCHING, glm::vec3(40.f, 40.f, 40.f));
     float b = glfwGetTime();
+    int chunks = 1;
+    terr.SetChunkSize(chunks, chunks);
     float a = glfwGetTime();
-    printf("-------- Render Marching ----------- \nTime to calc Values: %f\n", a - b);
-    float c = glfwGetTime();
-    mc.UpdateTransform(0, 0, 0, 40);
-    float d = glfwGetTime();
-    printf("Time to update cube: %f\n", d - c);
-    printf("-- TOTAL TIME: %f\n\n", d - b);
-	
+    printf("---- RENDER TERRAIN ----\nChunks: %i\nTime: %f\n", chunks * chunks, a - b);
+    MarchingCubes mc("res/shaders/ctest2.comp", "res/shaders/marching.shader");
+    b = glfwGetTime();
+    mc.UpdateTransform(glm::vec3(80, 0, 0), 40);
+    a = glfwGetTime();
+    printf("---- RENDER MC ----\nChunks: %i\nTime: %f\n", chunks * chunks, a - b);
+
+
     float f = -3.f;
     float dp = 0.05f;
 	
@@ -295,7 +298,7 @@ int main(void)
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    int add = 0;
+    float add = 0;
 	float lastcheck = glfwGetTime();
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -332,24 +335,9 @@ int main(void)
 			* glm::rotate(glm::mat4(1.0f), glm::radians(90.f), glm::vec3(1, 0, 0))
 			* glm::scale(glm::mat4(1.0f), glm::vec3(30)));
        // m.Draw(shader);
-		renderer.Draw(va, ib, shader);
-		
-        mc.Draw(camera.GetProjectionMatrix(), camera.GetViewMatrix());
-
-        add += 0.2f;
-        if (glfwGetTime() - lastcheck > 5) {
-            float b = glfwGetTime();
-            float a = glfwGetTime();
-            printf("-------- Render Marching ----------- \nTime to calc Values: %f\n", a - b);
-            float c = glfwGetTime();
-            mc.UpdateTransform(add, 0, 0, 60);
-            float d = glfwGetTime();
-            printf("Time to update cube: %f\n", d- c);
-            printf("-- TOTAL TIME: %f\n\n", d - b);
-            lastcheck = glfwGetTime();
-
-        }
-        
+		//renderer.Draw(va, ib, shader);
+        terr.Draw(camera.GetProjectionMatrix() * camera.GetViewMatrix());
+        mc.Draw(camera.GetProjectionMatrix()* camera.GetViewMatrix());
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);

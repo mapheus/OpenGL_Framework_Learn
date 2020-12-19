@@ -19,19 +19,18 @@ MarchingCubes::MarchingCubes(const char* compute, const char* draw)
 	snow = new Texture("res/textures/snow.jpg", "snow_texture");
 }
 
-void MarchingCubes::UpdateTransform(float x, float y, float z, float new_cubesize)
+void MarchingCubes::UpdateTransform(glm::vec3 pos, float new_cubesize)
 {
-	x_grid_min = x - new_cubesize /2.f;
-	x_grid_max = x + new_cubesize / 2.f;
+	this->x_grid_min = pos.x - new_cubesize /2.f;
+	this->x_grid_max = pos.x + new_cubesize / 2.f;
 
-	y_grid_min = y - new_cubesize / 2.f;
-	y_grid_max = y + new_cubesize / 2.f;
+	this->y_grid_min = pos.y - new_cubesize / 2.f;
+	this->y_grid_max = pos.y + new_cubesize / 2.f;
 
-	z_grid_min = z - new_cubesize / 2.f;
-	z_grid_max = z + new_cubesize / 2.f;
+	this->z_grid_min = pos.z - new_cubesize / 2.f;
+	this->z_grid_max = pos.z + new_cubesize / 2.f;
 	cubesize = new_cubesize;
 	CalcValues();
-	printf("cybesize update: %f\n", x_grid_min);
 	chunkVaos.clear();
 	for (int i = 0; i < res-1; i++) {
 		Update(i);
@@ -363,10 +362,10 @@ void MarchingCubes::Update(int z)
 }
 
 
-void MarchingCubes::Draw(glm::mat4 proj, glm::mat4 view)
+void MarchingCubes::Draw(glm::mat4 view)
 {
 	_drawProgram->Bind();
-	_drawProgram->SetUniformMatrix4("u_VP", proj * view);
+	_drawProgram->SetUniformMatrix4("u_VP", view);
 	_drawProgram->SetUniformMatrix4("u_Model",
 		glm::translate(glm::mat4(1), glm::vec3(0, -3, 0))
 		* glm::rotate(glm::mat4(1.0f), glm::radians(90.f), glm::vec3(0, 1, 0))
@@ -393,9 +392,10 @@ void MarchingCubes::CalcValues()
 {
 	values.clear();
 	FastNoiseLite noise;
+	noise.SetSeed(1337);
 	noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2S);
 
-	double step = cubesize / (res - 1);
+	double step = (double)cubesize / (double)(res - 1);
 
 	float v = 0;
 	for (std::int32_t x = 0; x < res; x++) {
@@ -408,10 +408,10 @@ void MarchingCubes::CalcValues()
 				v *= 25;
 				
 				if (y < res / 2) {
-					v -= 5+fabs(y - res / 2) * 2;
+					v -= 8+fabs(y - res / 2) * 2;
 				}
 				else {
-					v += fabs(y - res / 2) * 5;
+					v += fabs(y - res / 2) * 6;
 				}
 
 				//printf("%f\n", v);

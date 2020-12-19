@@ -47,11 +47,12 @@ struct mesh_data {
 class MarchingCubes {
 public:
 	MarchingCubes(const char* compute, const char* draw);
-	void UpdateTransform(float x, float y, float z, float new_cubesize);
-	void Update(int z);
-	void Draw(glm::mat4 proj, glm::mat4 view);
-	void CalcValues();
+	void UpdateTransform(glm::vec3 pos, float new_cubesize);
+	void Draw(glm::mat4 view);
 private:
+	void Update(int z);
+	void CalcValues();
+
 	Shader* _computeProgram;
 	Shader* _drawProgram;
 
