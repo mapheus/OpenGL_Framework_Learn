@@ -47,8 +47,22 @@ struct mesh_data {
 class MarchingCubes {
 public:
 	MarchingCubes(const char* compute, const char* compValues, const char* draw);
+	~MarchingCubes();
 	void UpdateTransform(glm::vec3 pos, glm::vec3 new_cubesize);
+	void Update();
 	void Draw(glm::mat4 view);
+
+	float* GetIsovalue() { return &isovalue;  }
+	float* GetScale() { return &scale; }
+	float* GetGain() { return &gain; }
+	float* GetLacunarity() { return &lacunarity; }
+	float* GetAmplitude() { return &amplitude; }
+	float* GetAirDensity() { return &air_density; }
+	float* GetGroundDensity() { return &ground_density; }
+	float* GetSurfaceLevel() { return &surface_level; }
+	int* GetOctaves() { return &octaves; }
+	int* GetResolution() { return &res; }
+
 private:
 	void Update(int z);
 
@@ -69,7 +83,6 @@ private:
 	size_t out_to_marching_size;
 	size_t out0_size;
 
-	int amount_elements_to_values = 9;
 	// Marching cubes
 	int MC_TriTable[256][16] =
 	{ {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -329,27 +342,28 @@ private:
 	{0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
 	{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1} };
 
-	int res = 16;
+	int amount_elements_to_values = 17;
+	int res = 32;
 
-	float surface_level = 0;
-	float prev_surface_level = surface_level;
-
-	glm::vec3 _cubesize = glm::vec3(40, 40, 40);
-	std::vector<std::vector<std::vector<float>>> values;
-	std::vector<triangle> triangles;
 	float x_grid_min = -20;
 	float x_grid_max = 20;
 	float y_grid_min = -20;
 	float y_grid_max = 20;
 	float z_grid_min = -20;
 	float z_grid_max = 20;
+	float isovalue = 0;
+	float surface_level = 0;
+	float scale = 0.3f;
+	float gain = 0.6f;
+	float lacunarity = 1.3f;
+	float amplitude = 2.f;
+	float air_density = 3.f;
+	float ground_density = 4.f;
+	int octaves = 1;
+
+	glm::vec3 _cubesize = glm::vec3(40, 40, 40);
+	std::vector<std::vector<std::vector<float>>> values;
+	std::vector<triangle> triangles;
 
 	std::map<GLuint, int> chunkVaos;
-
-	// Parameters
-	float scale = 13.f;
-	int octaves = 8;
-	float lacunarity = 1.35f;
-	float gain = 0.5f;
-	float mountain_amplitude = 1;
 };

@@ -23,10 +23,25 @@ void Terrain::SetChunkSize(unsigned int x, unsigned int z)
 	UpdateChunks();
 }
 
+void Terrain::SetTerrainSize(glm::vec3 size) {
+	_terrainSize = size;
+	_chunkLength = glm::vec2((float)_terrainSize.x / (float)_xAmount, _terrainSize.z / (float)_zAmount);
+	UpdateChunks();
+}
+
 void Terrain::SetPosition(glm::vec3 pos)
 {
 	_pos = pos;
 	UpdateChunks();
+}
+
+void Terrain::Update() {
+	UpdateChunks();
+}
+
+glm::vec3 Terrain::GetTerrainPosition()
+{
+	return _pos;
 }
 
 void Terrain::UpdateChunks()
@@ -35,7 +50,16 @@ void Terrain::UpdateChunks()
 		for (int j = 0; j < _zAmount; j++) {
 			float x =(_pos.x - ((float)(_xAmount - 1) / 2)*_chunkLength.x) + _chunkLength.x * i;
 			float z = (_pos.z - ((float)(_zAmount - 1) / 2) * _chunkLength.y) + _chunkLength.y * j;
-			//printf("x : z           : %f   :   %f", x, z);
+			*_chunks[i][j].GetIsovalue() = isovalue;
+			*_chunks[i][j].GetScale() = scale;
+			*_chunks[i][j].GetLacunarity() = lacunarity;
+			*_chunks[i][j].GetAmplitude() = amplitude;
+			*_chunks[i][j].GetAirDensity() = air_density;
+			*_chunks[i][j].GetGroundDensity() = ground_density;
+			*_chunks[i][j].GetSurfaceLevel() = surface_level;
+			*_chunks[i][j].GetOctaves() = octaves;
+			*_chunks[i][j].GetResolution() = res;
+
 			_chunks[i][j].UpdateTransform(glm::vec3(x, _pos.y, z), glm::vec3(_chunkLength.x, _terrainSize.y, _chunkLength.y));
 		}
 	}

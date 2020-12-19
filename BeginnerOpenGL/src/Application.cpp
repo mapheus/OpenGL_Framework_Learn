@@ -11,6 +11,9 @@
 #include <random>
 #include <array>
 
+#include "vendor/imgui/imgui.h"
+#include "vendor/imgui/imgui_impl_glfw.h"
+#include "vendor/imgui/imgui_impl_opengl3.h"
 
 #include "Renderer.h"
 #include "VertexBufferLayout.h"
@@ -30,14 +33,15 @@ void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 
 // settings
-const unsigned int SCR_WIDTH = 1080;
-const unsigned int SCR_HEIGHT = 720;
+const unsigned int SCR_WIDTH = 1920;
+const unsigned int SCR_HEIGHT = 1080;
 
 // camera
 Camera camera(90.f, SCR_WIDTH, SCR_HEIGHT);
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
+bool mouseUnlocked = false;
 // timing
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
@@ -90,114 +94,6 @@ void APIENTRY glDebugOutput(GLenum source,
     std::cout << std::endl;
 }
 
-/*
-mesh_data meshFromTriangles(std::vector<triangle>& triangles) {
-	auto vertices = std::vector<glm::vec3>(triangles.size() * 3);
-	auto normals = std::vector<glm::vec3>(triangles.size() * 3);
-	auto index_sets = std::vector<glm::uvec3>(triangles.size());
-
-	size_t a = 0u;
-	for (unsigned int i = 0; i < triangles.size(); i++) {
-		vertices[a] = glm::vec3(triangles[i].vertex[0]);
-		normals[a] = triangles[i].normal;
-
-		vertices[a + 1] = glm::vec3(triangles[i].vertex[1]);
-		normals[a + 1] = triangles[i].normal;
-
-		vertices[a + 2] = glm::vec3(triangles[i].vertex[2]);
-		normals[a + 2] = triangles[i].normal;
-
-		index_sets[i] = glm::uvec3(a, a + 1, a + 2);
-		a += 3u;
-	}
-
-	mesh_data data;
-	glGenVertexArrays(1, &data.vao);
-	assert(data.vao != 0u);
-	glBindVertexArray(data.vao);
-
-	auto const vertices_offset = 0u;
-	auto const vertices_size = static_cast<GLsizeiptr>(vertices.size() * sizeof(glm::vec3));
-	auto const normals_offset = vertices_size;
-	auto const normals_size = static_cast<GLsizeiptr>(normals.size() * sizeof(glm::vec3));
-
-	auto const bo_size = static_cast<GLsizeiptr>(vertices_size + normals_size);
-	glGenBuffers(1, &data.bo);
-	assert(data.bo != 0u);
-	glBindBuffer(GL_ARRAY_BUFFER, data.bo);
-	glBufferData(GL_ARRAY_BUFFER, bo_size, nullptr, GL_STATIC_DRAW);
-
-	glBufferSubData(GL_ARRAY_BUFFER, vertices_offset, vertices_size, static_cast<GLvoid const*>(vertices.data()));
-	glEnableVertexAttribArray(static_cast<unsigned int>(shader_bindings::vertices));
-	glVertexAttribPointer(static_cast<unsigned int>(shader_bindings::vertices), 3, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<GLvoid const*>(0x0));
-
-	glBufferSubData(GL_ARRAY_BUFFER, normals_offset, normals_size, static_cast<GLvoid const*>(normals.data()));
-	glEnableVertexAttribArray(static_cast<unsigned int>(shader_bindings::normals));
-	glVertexAttribPointer(static_cast<unsigned int>(shader_bindings::normals), 3, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<GLvoid const*>(normals_offset));
-
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0u);
-
-	data.indices_nb = index_sets.size() * 3u;
-	glGenBuffers(1, &data.ibo);
-	assert(data.ibo != 0u);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, data.ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(index_sets.size() * sizeof(glm::uvec3)), reinterpret_cast<GLvoid const*>(index_sets.data()), GL_STATIC_DRAW);
-
-	glBindVertexArray(0u);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0u);
-
-	return data;
-}
-*/
-
-void computeTest() {
-	Shader test("res/shaders/ctest2.comp", true);
-	Shader d("res/shaders/default.shader", false);
-
-	int numVertices = 200;
-	int dimension = 3;
-	size_t size = sizeof(float**) * numVertices * dimension;
-
-	GLuint computeShaderBuffer;
-	//Create the buffer the compute shader will write to
-	glGenBuffers(1, &computeShaderBuffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, computeShaderBuffer);
-	glBufferData(GL_SHADER_STORAGE_BUFFER, size, NULL, GL_STATIC_DRAW);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, computeShaderBuffer);
-
-
-
-	test.Bind();
-	glDispatchCompute(numVertices/20, 1, 1);
-	GLuint VAO;
-
-	//Generate the vertex array object
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-
-	//Use buffer as a set of vertices
-	glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
-	glBindBuffer(GL_ARRAY_BUFFER, computeShaderBuffer);
-
-
-	d.Bind();
-	d.SetUniformMatrix4("u_VP", camera.GetProjectionMatrix() * camera.GetViewMatrix());
-	d.SetUniformMatrix4("u_Model",
-		glm::translate(glm::mat4(1), glm::vec3(0, -3, 0))
-		* glm::rotate(glm::mat4(1.0f), glm::radians(90.f), glm::vec3(1, 0, 0))
-		* glm::scale(glm::mat4(1.0f), glm::vec3(2)));
-
-	//Enable the vertex array
-	glVertexAttribPointer(0, dimension, GL_FLOAT, 0, 0, (void*)0);
-	glEnableVertexAttribArray(0);
-
-	//Draw it
-	glClear(GL_COLOR_BUFFER_BIT);
-	glBindVertexArray(VAO);
-	glDrawArrays(GL_TRIANGLES, 0, numVertices);
-	glFlush();
-}
 
 int main(void)
 {
@@ -215,7 +111,7 @@ int main(void)
 
     GLFWwindow* window;
     /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(1080, 720, "Learn OpenGL", NULL, NULL);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Learn OpenGL", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -236,57 +132,36 @@ int main(void)
 
 	std::cout << "GL_VERSION: " << glGetString(GL_VERSION) << std::endl;
 
-    float positions[24] = {
-        // positions          // texture coords
-        0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f, // top right
-        0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f, // bottom right
-       -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f, // bottom left
-       -0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 1.0f // top left 
-    };
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsClassic();
 
-    unsigned int indices[6] = {
-        0, 1, 2,
-        2, 3, 0
-    };
+    // Setup Platform/Renderer bindings
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 430");
 
-    VertexArray va;
-    
-    VertexBuffer vb(positions, 4 * 6 * sizeof(float));
-
-    VertexBufferLayout layout;
-    layout.Push<float>(3);
-    layout.Push<float>(3);
-    va.AddBuffer(vb, layout);
-    IndexBuffer ib(indices, 6);
-
-
-
-
-    Shader shader("res/shaders/Basic.shader", false);
-	GLuint tex_output = 0;
-
-    shader.Unbind();
 
     Renderer renderer;
 
     //Model m("res/models/backpack/backpack.obj");
     Terrain terr(TerrainType::MARCHING, glm::vec3(80.f, 40.f, 80.f));
-    int chunks = 3;
+    int chunks = 2;
     terr.SetChunkSize(chunks, chunks);
-    float b = glfwGetTime();
-    terr.SetPosition(glm::vec3(-10, 0, 0));
-    float a = glfwGetTime();
-    printf("---- RENDER TERRAIN ----\nChunks: %i\nTime: %f\n", chunks * chunks, a - b);
-    MarchingCubes mc("res/shaders/ctest2.comp", "res/shaders/calcValues.comp", "res/shaders/marching.shader");
-    b = glfwGetTime();
-    mc.UpdateTransform(glm::vec3(80, 0, 0), glm::vec3(80.f, 40.f, 80.f));
-    a = glfwGetTime();
-    printf("---- RENDER ONE MC ----\nTime: %f\n\n", a - b);
-
-
-    float f = -3.f;
-    float dp = 0.05f;
+    float terrainsize = 40;
+    float terrainPosition[3];
+    terrainPosition[0] = 0;
+    terrainPosition[1] = 0;
+    terrainPosition[2] = 0;
+    bool chunkchanged = false;
+    bool sizechanged = false;
+    bool positionchanged = false;
 	
     int flags; glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
     if (flags & GL_CONTEXT_FLAG_DEBUG_BIT)
@@ -308,51 +183,84 @@ int main(void)
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
+        // Start the Dear ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
         renderer.Clear();
         processInput(window);
 
 
-        //computeTest();
-        shader.Bind();
-        shader.SetUniform3f("lightPos", glm::vec3(-15, 30, 5));
-        shader.SetUniform3f("viewPos", camera.GetPosition());
-
-        shader.SetUniform3f("light.position", glm::vec3(f, 1, 2));
-        if (f < -13) {
-            dp = 0.05f;
-        }
-        else if (f > 13) dp = -0.05f;
-        f += dp;
-        shader.SetUniform3f("light.color", glm::vec3(1, 0.6, 0.2));
-        shader.SetUniform1f("light.constant", 1.0f);
-        shader.SetUniform1f("light.linear", 0.07f);
-        shader.SetUniform1f("light.quadratic", 0.017f);
-        // Model pos
-		
-		shader.Bind();
-		shader.SetUniformMatrix4("u_VP", camera.GetProjectionMatrix() * camera.GetViewMatrix());
-		shader.SetUniformMatrix4("u_Model",
-			glm::translate(glm::mat4(1), glm::vec3(0, -3, 0))
-			* glm::rotate(glm::mat4(1.0f), glm::radians(90.f), glm::vec3(1, 0, 0))
-			* glm::scale(glm::mat4(1.0f), glm::vec3(30)));
-       // m.Draw(shader);
-		renderer.Draw(va, ib, shader);
         terr.Draw(camera.GetProjectionMatrix() * camera.GetViewMatrix());
-        mc.Draw(camera.GetProjectionMatrix()* camera.GetViewMatrix());
 
-        add += 0.02f;
-        if (glfwGetTime() - lastcheck > 2) {
-            float b = glfwGetTime();
-            terr.SetPosition(glm::vec3(-20.f, 0.f, 0.f+add));
-            float a = glfwGetTime();
-            printf("---- RENDER TERRAIN ----\nChunks: %i\nTime: %f\n", chunks* chunks, a - b);
-            b = glfwGetTime();
-            mc.UpdateTransform(glm::vec3(80, 0, 0+add), glm::vec3(80.f, 40.f, 80.f));
-            a = glfwGetTime();
-            printf("---- RENDER ONE MC ----\nTime: %f\n\n", a - b);
-            lastcheck = glfwGetTime();
+        if (glm::length(camera.GetPosition() - terr.GetTerrainPosition()) > 80) {
+            terr.SetPosition(glm::vec3(camera.GetPosition().x, 0, camera.GetPosition().z));
         }
 
+        
+        ImGui::Begin("Scene Info");                          // Create a window called "Hello, world!" and append into it.
+
+        ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::SliderFloat("Isolevel: ", terr.GetIsovalue(), -100.f, 100.f);
+            ImGui::SliderFloat("Surface Level: ", terr.GetSurfaceLevel(), -50.f, 50.f);
+            ImGui::SliderFloat("Scale: ", terr.GetScale(), 0, 0.7f);
+            ImGui::SliderFloat("Gain: ", terr.GetGain(), 0, 2.0f);
+            ImGui::SliderFloat("Lacunarity: ", terr.GetLacunarity(), 0, 3.f);
+            ImGui::SliderFloat("Amplitude: ", terr.GetAmplitude(), 0, 3.f);
+            ImGui::SliderFloat("Air Density: ", terr.GetAirDensity(), 0, 7.f);
+            ImGui::SliderFloat("Ground Density: ", terr.GetAmplitude(), 0, 7.f);
+            ImGui::SliderInt("Octaves: ", terr.GetOctaves(), 0, 10);
+            ImGui::Text("-- Terrain detail options --");
+            ImGui::SliderInt("Resolution: ", terr.GetResolution(), 5, 64);
+            if (ImGui::SliderInt("Chunks per side: ", &chunks, 1, 10)) {
+                chunkchanged = true;
+            }
+            if (ImGui::SliderFloat3("Terrain Position: ", terrainPosition, -100, 100, 0, 0)) {
+                positionchanged = true;
+            }
+            if (ImGui::SliderFloat("Terrain Side Length: ", &terrainsize, 5, 400, 0, 0)) {
+                sizechanged = true;
+            }
+            if(ImGui::Button("UPDATE"))
+            {
+                if (chunkchanged) {
+                    terr.SetChunkSize(chunks, chunks);
+                    chunkchanged = false;
+                }
+                if (positionchanged) {
+                    terr.SetPosition(glm::vec3(terrainPosition[0], terrainPosition[1], terrainPosition[2]));
+                    positionchanged = false;
+                }
+                if (sizechanged) {
+                    terr.SetTerrainSize(glm::vec3(terrainsize, terrainsize, terrainsize));
+                    sizechanged = false;
+                }
+                float b = glfwGetTime();
+                terr.Update();
+                float a = glfwGetTime();
+                printf("---- RENDER TERRAIN ----\nChunks: %i\nTime: %f\n", chunks* chunks, a - b);
+            }
+        ImGui::End();
+
+        /*
+        ImGui::Begin("Terrain Controls");
+                
+                ImGui::InputInt("Cubesize: ", &cubesize);
+                ImGui::InputInt("Octaves: ", &octaves);
+            
+                
+                
+                ImGui::SliderFloat("Mountains freq: ", &mountains, 0, 0.6f);
+                
+         
+        ImGui::End();
+        */
+
+        
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
 
@@ -379,24 +287,39 @@ void processInput(GLFWwindow* window)
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+    
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+        if (mouseUnlocked) {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            mouseUnlocked = !mouseUnlocked;
+        }
+        else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            mouseUnlocked = !mouseUnlocked;
+        }
+    }
+    
 }
 
 // glfw: whenever the mouse moves, this callback is called
 // -------------------------------------------------------
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    if (firstMouse)
-    {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
+    if (!mouseUnlocked) {
+        if (firstMouse)
+        {
+            lastX = xpos;
+            lastY = ypos;
+            firstMouse = false;
+        }
+
+            float xoffset = xpos - lastX;
+            float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+
+            lastX = xpos;
+            lastY = ypos;
+
+            camera.ProcessMouseMovement(xoffset, yoffset);
+
     }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
-
-    lastX = xpos;
-    lastY = ypos;
-
-    camera.ProcessMouseMovement(xoffset, yoffset);
 }

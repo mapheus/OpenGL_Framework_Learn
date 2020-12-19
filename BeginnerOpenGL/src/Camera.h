@@ -15,7 +15,7 @@ enum Camera_Movement {
 // Default camera values
 const float YAW = -90.0f;
 const float PITCH = 0.0f;
-const float SPEED = 35.5f;
+const float SPEED = 20.f;
 const float SENSITIVITY = 0.1f;
 const float ZOOM = 45.0f;
 
@@ -26,7 +26,7 @@ private:
 	glm::mat4 m_ViewProjectionMatrix;
 	glm::mat4 m_ViewMatrix;
 
-	glm::vec3 m_Position = glm::vec3(0,0,0);
+	glm::vec3 m_Position = glm::vec3(0,10,-10);
 	glm::vec3 m_Front = glm::vec3(0, 0, -1);
 	glm::vec3 m_Up = glm::vec3(0, 1, 0);
 	glm::vec3 m_Right = glm::vec3(1, 0, 0);
